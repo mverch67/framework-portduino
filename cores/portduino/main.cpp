@@ -13,6 +13,10 @@
  */
 static long loopDelay = 100;
 
+/** Store pointer to argv for restart
+*/
+char **progArgv;
+
 /** apps run under portduino can optionally define a portduinoSetup() to
  * use portduino specific init code (such as gpioBind) to setup portduino on
  * their host machine, before running 'arduino' code.
@@ -125,8 +129,12 @@ void portduinoAddArguments(const struct argp_child &child,
   childArguments = _childArguments;
 }
 
-int main(int argc, char *argv[]) {
+void reboot() {
+  execv(progArgv[0], progArgv);
+}
 
+int main(int argc, char *argv[]) {
+  progArgv = argv;
   portduinoCustomInit();
 
   auto *args = &portduinoArguments;

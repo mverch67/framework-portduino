@@ -65,7 +65,7 @@ namespace arduino {
         return numBytes;
     }
 
-    uint8_t LinuxHardwareI2C::requestFrom(uint8_t address, size_t len) {
-        NOT_IMPLEMENTED("requestFrom");
+    uint8_t LinuxHardwareI2C::requestFrom(uint8_t address, size_t) {
+        return ioctl(i2c_file, I2C_SLAVE, address);
     }
 }
