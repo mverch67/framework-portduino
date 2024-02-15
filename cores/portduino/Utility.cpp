@@ -9,8 +9,13 @@
 void notImplemented(const char *msg) { printf("%s is not implemented\n", msg); }
 
 void portduinoError(const char *msg, ...) {
-  printf("Portduino critical error: %s\n", msg);
-  throw Exception(msg);
+  char msgBuffer[256];
+  va_list args;
+  va_start(args, msg);
+  vsnprintf(msgBuffer, sizeof msgBuffer, msg, args);
+  va_end(args);
+  printf("Portduino critical error: %s\n", msgBuffer);
+  throw Exception(msgBuffer);
 }
 
 int portduinoCheckNotNeg(int result, const char *msg, ...) {
