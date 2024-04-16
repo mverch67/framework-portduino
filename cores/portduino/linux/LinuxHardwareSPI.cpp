@@ -67,12 +67,12 @@ class LinuxSPIChip : public SPIChip, private PosixFile {
 
       return 0;
     }
-    void beginTransaction(uint32_t clockSpeed) override {
+    void beginTransaction(uint32_t clockSpeed) {
       SPIMutex.lock();
       assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &clockSpeed) >= 0);
 
     }
-    void endTransaction() override {
+    void endTransaction() {
       uint32_t clockSpeed = 2000000;
       SPIMutex.unlock();
       assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &clockSpeed) >= 0);
@@ -120,12 +120,13 @@ void HardwareSPI::notUsingInterrupt(int interruptNumber) {
 void HardwareSPI::beginTransaction(SPISettings settings) {
   assert(settings.bitOrder == MSBFIRST); // we don't support changing yet
   assert(settings.dataMode == SPI_MODE0);
-  spiChip->beginTransaction(settings.clockFreq);
+  if (spiChip)
+    spiChip->beginTransaction(settings.clockFreq);
 }
 
 void HardwareSPI::endTransaction(void) {
-  assert(spiChip);
-  spiChip->endTransaction();
+  if (spiChip)
+    spiChip->endTransaction();
 }
 
 // SPI Configuration methods

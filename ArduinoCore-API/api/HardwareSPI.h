@@ -125,7 +125,7 @@ class HardwareSPI
 
     virtual void end();
   protected:
-    SPIChip *spiChip;
+    SPIChip *spiChip = nullptr;
 };
 
 // Alias SPIClass to HardwareSPI since it's already the defacto standard for SPI classe name
