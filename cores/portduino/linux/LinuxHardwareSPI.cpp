@@ -13,66 +13,70 @@
 
 #include "linux/PosixFile.h"
 #include <linux/spi/spidev.h>
+#include <mutex>
 
 class LinuxSPIChip : public SPIChip, private PosixFile {
-public:
-  LinuxSPIChip(const char *name) : PosixFile(name) {
-    uint8_t mode = SPI_MODE_0;
-    uint8_t lsb = false;
-    uint32_t speed = 2000000;
-    int status = ioctl(SPI_IOC_WR_MODE, &mode);
-    assert(status >= 0);
-    status = ioctl(SPI_IOC_WR_LSB_FIRST, &lsb);
-    assert(status >= 0);
-    status = ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &speed);
-    assert(status >= 0);
-  }
-
-  /**
-   * Do a SPI transaction to the selected device
-   *
-   * @param outBuf if NULL it will be not used (zeros will be sent)
-   * @param inBuf if NULL it will not be used (device response bytes will be
-   * discarded)
-   * @param deassertCS after last transaction (if not set, it will be left
-   * asserted)
-   * @return 0 for success, else ERRNO fault code
-   */
-  int transfer(const uint8_t *outBuf, uint8_t *inBuf, size_t bufLen,
-               bool deassertCS = true) {
-    struct spi_ioc_transfer xfer;
-
-    /*
-    We want default SPI mode 0, MSB first
-
-    uint8_t mode = SPI_MODE_0;
-    uint8_t lsb = 0; // we want MSB first SPI_LSB_FIRST;
-    ioctl(fd, SPI_IOC_WR_MODE, &mode);
-    ioctl(fd, SPI_IOC_WR_LSB_FIRST, &lsb);
-    */
-
-    memset(&xfer, 0, sizeof xfer);
-
-    xfer.tx_buf = (unsigned long)outBuf;
-    xfer.len = bufLen;
-
-    xfer.rx_buf = (unsigned long)inBuf; // Could be NULL, to ignore RX bytes
-    xfer.cs_change = deassertCS;
-
-    int status = ioctl(SPI_IOC_MESSAGE(1), &xfer);
-    if (status < 0) {
-      perror("SPI_IOC_MESSAGE");
-      return status;
+  private:
+    std::mutex SPIMutex;
+  public:
+    LinuxSPIChip(const char *name) : PosixFile(name) {
+      uint8_t mode = SPI_MODE_0;
+      uint8_t lsb = false;
+      uint32_t speed = 2000000;
+      int status = ioctl(SPI_IOC_WR_MODE, &mode);
+      assert(status >= 0);
+      status = ioctl(SPI_IOC_WR_LSB_FIRST, &lsb);
+      assert(status >= 0);
+      status = ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+      assert(status >= 0);
     }
 
-    /* printf("SPI response(%d): ", status);
-    size_t len = bufLen;
-    for (auto bp = inBuf; len; len--)
-        printf("%02x ", *bp++);
-    printf("\n"); */
+    /**
+     * Do a SPI transaction to the selected device
+     *
+     * @param outBuf if NULL it will be not used (zeros will be sent)
+     * @param inBuf if NULL it will not be used (device response bytes will be
+     * discarded)
+     * @param deassertCS after last transaction (if not set, it will be left
+     * asserted)
+     * @return 0 for success, else ERRNO fault code
+     */
+    int transfer(const uint8_t *outBuf, uint8_t *inBuf, size_t bufLen,
+                bool deassertCS = true) {
+      struct spi_ioc_transfer xfer;
 
-    return 0;
-  }
+      memset(&xfer, 0, sizeof xfer);
+
+      xfer.tx_buf = (unsigned long)outBuf;
+      xfer.len = bufLen;
+
+      xfer.rx_buf = (unsigned long)inBuf; // Could be NULL, to ignore RX bytes
+      xfer.cs_change = deassertCS;
+
+      int status = ioctl(SPI_IOC_MESSAGE(1), &xfer);
+      if (status < 0) {
+        perror("SPI_IOC_MESSAGE");
+        return status;
+      }
+
+      /* printf("SPI response(%d): ", status);
+      size_t len = bufLen;
+      for (auto bp = inBuf; len; len--)
+          printf("%02x ", *bp++);
+      printf("\n"); */
+
+      return 0;
+    }
+    void beginTransaction(uint32_t clockSpeed) override {
+      SPIMutex.lock();
+      assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &clockSpeed) >= 0);
+
+    }
+    void endTransaction() override {
+      uint32_t clockSpeed = 2000000;
+      SPIMutex.unlock();
+      assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &clockSpeed) >= 0);
+    }
 };
 #endif
 
@@ -114,17 +118,14 @@ void HardwareSPI::notUsingInterrupt(int interruptNumber) {
 }
 
 void HardwareSPI::beginTransaction(SPISettings settings) {
-  // printf("beginTransaction\n");
-  // spiChip->transfer(NULL, NULL, 0, false); // turn on chip select
   assert(settings.bitOrder == MSBFIRST); // we don't support changing yet
   assert(settings.dataMode == SPI_MODE0);
+  spiChip->beginTransaction(settings.clockFreq);
 }
 
 void HardwareSPI::endTransaction(void) {
   assert(spiChip);
-  // spiChip->transfer(NULL, NULL, 0, true); // turn off chip select
-
-  // printf("endTransaction\n");
+  spiChip->endTransaction();
 }
 
 // SPI Configuration methods

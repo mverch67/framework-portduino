@@ -17,6 +17,8 @@ public:
 
     /// is this chip controlling real hardware?
     virtual const bool isSimulated() { return false; }
+    virtual void beginTransaction(uint32_t clockSpeed) {};
+    virtual void endTransaction() {};
 };
 
 
