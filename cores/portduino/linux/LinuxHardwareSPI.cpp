@@ -18,16 +18,18 @@
 class LinuxSPIChip : public SPIChip, private PosixFile {
   private:
     std::mutex SPIMutex;
+    uint32_t defaultSpeed = 2000000;
+    
   public:
-    LinuxSPIChip(const char *name) : PosixFile(name) {
+    LinuxSPIChip(const char *name, uint32_t default_frequency) : PosixFile(name) {
+      defaultSpeed = default_frequency;
       uint8_t mode = SPI_MODE_0;
       uint8_t lsb = false;
-      uint32_t speed = 2000000;
       int status = ioctl(SPI_IOC_WR_MODE, &mode);
       assert(status >= 0);
       status = ioctl(SPI_IOC_WR_LSB_FIRST, &lsb);
       assert(status >= 0);
-      status = ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &speed);
+      status = ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &defaultSpeed);
       assert(status >= 0);
     }
 
@@ -58,13 +60,6 @@ class LinuxSPIChip : public SPIChip, private PosixFile {
         perror("SPI_IOC_MESSAGE");
         return status;
       }
-
-      /* printf("SPI response(%d): ", status);
-      size_t len = bufLen;
-      for (auto bp = inBuf; len; len--)
-          printf("%02x ", *bp++);
-      printf("\n"); */
-
       return 0;
     }
     void beginTransaction(uint32_t clockSpeed) {
@@ -73,9 +68,8 @@ class LinuxSPIChip : public SPIChip, private PosixFile {
 
     }
     void endTransaction() {
-      uint32_t clockSpeed = 2000000;
       SPIMutex.unlock();
-      assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &clockSpeed) >= 0);
+      assert (ioctl(SPI_IOC_WR_MAX_SPEED_HZ, &defaultSpeed) >= 0);
     }
 };
 #endif
@@ -138,7 +132,7 @@ void HardwareSPI::detachInterrupt() {
   // Do nothing
 }
 
-void HardwareSPI::begin(const char *name) {
+void HardwareSPI::begin(const char *name, uint32_t freq) {
   // We only do this init once per boot
   if (!spiChip) {
 
@@ -146,7 +140,7 @@ void HardwareSPI::begin(const char *name) {
     // FIXME, only install the following on linux and only if we see that the
     // device exists in the filesystem
     try {
-      spiChip = new LinuxSPIChip(name);
+      spiChip = new LinuxSPIChip(name, freq);
     } catch (...) {
       printf("No hardware spi chip found...\n");
     }
