@@ -122,7 +122,7 @@ class HardwareSPI
 
     virtual void begin() {begin("/dev/spidev0.0");};
     virtual void begin(const char *name, uint32_t freq = 2000000);
-    uint32_t defaultSpeed;
+    //uint32_t defaultSpeed;
 
     virtual void end();
   protected:
