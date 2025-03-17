@@ -7,7 +7,7 @@ include_directories(cores/arduino/api)
 include_directories(cores/portduino)
 include_directories(cores/portduino/FS)
 
-add_executable(Portduino
+add_library(Portduino
         cores/arduino/api/deprecated/Client.h
         cores/arduino/api/deprecated/HardwareSerial.h
         cores/arduino/api/deprecated/IPAddress.h
@@ -56,7 +56,6 @@ add_executable(Portduino
         cores/portduino/Utility.cpp
         cores/portduino/Utility.h
         cores/portduino/simulated/SimHardwareSPI.cpp
-        example/test.cpp
        	cores/portduino/simulated/SimHardwareI2C.cpp
        	cores/portduino/simulated/SimHardwareI2C.h
        	cores/portduino/linux/LinuxCommon.cpp
